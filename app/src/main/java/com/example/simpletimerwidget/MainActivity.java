@@ -1,7 +1,9 @@
 package com.example.simpletimerwidget;
 
+import android.graphics.Color;
 import android.os.Bundle;
 import android.os.CountDownTimer;
+import android.util.TypedValue;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.TimePicker;
@@ -35,9 +37,9 @@ public class MainActivity extends AppCompatActivity implements TimePicker.OnTime
         });
 
         textView = findViewById(R.id.textView);
-        TimePicker tp = findViewById(R.id.timePicker);
-        tp.setIs24HourView(true);
-        tp.setOnTimeChangedListener(this);
+//        TimePicker tp = findViewById(R.id.timePicker);
+//        tp.setIs24HourView(true);
+//        tp.setOnTimeChangedListener(this);
 
         timer = new Timer(60000) {
             @Override
@@ -49,7 +51,15 @@ public class MainActivity extends AppCompatActivity implements TimePicker.OnTime
             public void onFinish() {
                 textView.setText("00:00:00");
             }
+
+            @Override
+            public void onReset(long seconds) { onTimerReset(seconds); }
         };
+    }
+
+    private void onTimerReset(long seconds) {
+        textView.setBackgroundColor(0x20808080); // 50% gray at 13% opacity
+        setTimeView(seconds);
     }
 
     private void setTimeView(long seconds) {
@@ -71,6 +81,7 @@ public class MainActivity extends AppCompatActivity implements TimePicker.OnTime
     }
 
     public void startTimer(View view) {
+        textView.setBackgroundColor(Color.TRANSPARENT);
         timer.Start();
     }
 
@@ -83,10 +94,28 @@ public class MainActivity extends AppCompatActivity implements TimePicker.OnTime
         timer.Pause();
     }
 
+    public void timeClicked (View view) {
+        // Don't allow setting the timer if currently ticking.
+        if(timer.IsStarted()) return;
+
+        MyTimePicker timePicker = new MyTimePicker();
+        timePicker.setTitle("Set timer");
+        //timePicker.includeHours = false
+        timePicker.setOnTimeSetOption("Set", (hour, minute, second) ->  {
+            timer.Set((hour*60*60 + minute*60 + second)*1000L);
+            return null;
+        });
+
+            /* To show the dialog you have to supply the "fragment manager"
+                and a tag (whatever you want)
+            */
+        timePicker.show(getSupportFragmentManager(), "time_picker");
+
+    }
+
     @Override
     public void onTimeChanged (TimePicker tp, int hour, int min) {
         int seconds = hour * 60 * 60 + min * 60;
         timer.Set(seconds * 1000L);
-        setTimeView(seconds);
     }
 }

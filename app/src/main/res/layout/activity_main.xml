@@ -23,18 +23,15 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"/>
 
-    <TimePicker
-        android:id="@+id/timePicker"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"/>
-
     <TextView
         android:id="@+id/textView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_weight="0"
+        android:background="?attr/colorControlHighlight"
+        android:onClick="timeClicked"
         android:text="00:00:00"
-        android:textSize="48sp"
-        android:layout_weight="0"/>
+        android:textSize="48sp" />
 
 
     <LinearLayout

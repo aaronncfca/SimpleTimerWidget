@@ -20,6 +20,7 @@ public abstract class Timer {
     public void Reset() {
         Pause();
         currMs = startMs;
+        onReset(currMs/1000);
     }
 
     public void Start() {
@@ -61,6 +62,8 @@ public abstract class Timer {
         return currMs;
     }
 
+    public boolean IsStarted() { return counting; }
+
     public abstract void onTick(long secondsUntilFinished);
 
     /**
@@ -68,4 +71,6 @@ public abstract class Timer {
      * the timer reaches 0 (i.e. onTick(0) is called) due to rounding and such.
      */
     public abstract void onFinish();
+
+    public abstract void onReset(long secondsUntilFinished);
 }
