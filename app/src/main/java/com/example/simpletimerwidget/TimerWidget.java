@@ -51,16 +51,16 @@ public class TimerWidget extends AppWidgetProvider {
         if(WIDGET_BTN_CLICK.equals(intent.getAction())) {
             // TODO: ensure service isn't already running.
             Intent serviceIntent = new Intent(context, TimerService.class);
-            serviceIntent.putExtra("timeLeftInMillis", 60000L); // TODO: get from activity.
+            serviceIntent.putExtra(TimerService.EXTRA_SECONDS_LEFT, 60L); // TODO: get from activity.
             context.startService(serviceIntent);
             Toast.makeText(context, "serviceStarted", Toast.LENGTH_SHORT).show();
         }
 
-        if ("com.example.simpletimerwidget.TIMER_UPDATED".equals(intent.getAction())) {
-            long timeLeftInMillis = intent.getLongExtra("timeLeftInMillis", 0);
+        if (TimerService.ACTION_TICK.equals(intent.getAction())) {
+            long secondsLeft = intent.getLongExtra(TimerService.EXTRA_SECONDS_LEFT, 0);
             AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(context);
             RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.timer_widget);
-            views.setTextViewText(R.id.timer_text, "Time left: " + timeLeftInMillis / 1000 + " seconds");
+            views.setTextViewText(R.id.timer_text, "Time left: " + secondsLeft + " seconds");
 
             ComponentName widget = new ComponentName(context, TimerWidget.class);
             appWidgetManager.updateAppWidget(widget, views);

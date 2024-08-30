@@ -29,7 +29,9 @@
             android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.example.simpletimerwidget.TIMER_UPDATED" />
+                <action android:name="SIMPLETIMER_ACTION_STARTED" />
+                <action android:name="SIMPLETIMER_ACTION_STOPPED" />
+                <action android:name="SIMPLETIMER_ACTION_TICK" />
                 <action android:name="WIDGETBTN_CLICK" />
             </intent-filter>
 

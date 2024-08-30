@@ -15,6 +15,13 @@ import androidx.core.app.NotificationCompat;
 
 public class TimerService extends Service {
     public static final String CHANNEL_ID = "TimerServiceChannel";
+
+    // Must match action names in AndroidManifest.
+    public static final String ACTION_STARTED = "SIMPLETIMER_ACTION_STARTED";
+    public static final String ACTION_STOPPED = "SIMPLETIMER_ACTION_STARTED";
+    public static final String ACTION_TICK = "SIMPLETIMER_ACTION_TICK";
+    public static final String EXTRA_SECONDS_LEFT = "secondsLeft";
+
     private MyTimer timer;
 
     @Override
@@ -25,10 +32,10 @@ public class TimerService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        long timeLeftInMillis = intent.getLongExtra("timeLeftInMillis", 50000); // Default to 1 minute
+        long secondsLeft = intent.getLongExtra(EXTRA_SECONDS_LEFT, 50); // Default to 1 minute
         startForeground(1, getNotification("Timer started"));
 
-        timer = new MyTimer(timeLeftInMillis);
+        timer = new MyTimer(secondsLeft * 1000L);
         timer.Start();
 
         return START_NOT_STICKY;
@@ -88,9 +95,9 @@ public class TimerService extends Service {
         }
 
         @Override
-        public void onTick(long secondsUntilFinished) {
-            updateNotification("Time left: " + secondsUntilFinished + " seconds");
-            sendBroadcast(new Intent("com.example.simpletimerwidget.TIMER_UPDATED").setPackage(getApplicationContext().getPackageName()).putExtra("timeLeftInMillis", GetCurrMs()));
+        public void onTick(long secondsLeft) {
+            updateNotification("Time left: " + secondsLeft + " seconds");
+            sendBroadcast(new Intent(ACTION_TICK).setPackage(getApplicationContext().getPackageName()).putExtra(EXTRA_SECONDS_LEFT, secondsLeft));
         }
 
         @Override
