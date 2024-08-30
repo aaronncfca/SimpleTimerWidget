@@ -1,6 +1,8 @@
 package com.example.simpletimerwidget;
 
+import android.Manifest;
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.util.TypedValue;
@@ -9,7 +11,9 @@ import android.widget.TextView;
 import android.widget.TimePicker;
 
 import androidx.activity.EdgeToEdge;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -27,8 +31,12 @@ public class MainActivity extends AppCompatActivity implements TimePicker.OnTime
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        EdgeToEdge.enable(this);
+        EdgeToEdge.enable(this); // TODO: disable?
         setContentView(R.layout.activity_main);
+
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requestNotificationPermission();
+        }
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -55,6 +63,11 @@ public class MainActivity extends AppCompatActivity implements TimePicker.OnTime
             @Override
             public void onReset(long seconds) { onTimerReset(seconds); }
         };
+    }
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    private void requestNotificationPermission() {
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 100);
     }
 
     private void onTimerReset(long seconds) {
