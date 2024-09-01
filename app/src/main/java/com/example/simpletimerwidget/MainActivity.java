@@ -76,21 +76,7 @@ public class MainActivity extends AppCompatActivity implements TimePicker.OnTime
     }
 
     private void setTimeView(long seconds) {
-        NumberFormat f = new DecimalFormat("00");
-        long hour = (seconds / 60 / 60) % 24;
-        long min = (seconds / 60) % 60;
-        long sec = seconds % 60;
-
-        String text = "";
-        // TODO: use a method that takes locale into account?
-        if (hour > 0) {
-            text += hour + ":" + f.format(min) + ":";
-        } else if (min > 0) {
-            text += min + ":";
-        }
-        text += f.format(sec);
-
-        textView.setText(text);
+        textView.setText(TimerService.formatTimeLeft(seconds));
     }
 
     public void startTimer(View view) {

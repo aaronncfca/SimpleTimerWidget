@@ -13,16 +13,47 @@ import android.os.IBinder;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
+
 public class TimerService extends Service {
     public static final String CHANNEL_ID = "TimerServiceChannel";
 
-    // Must match action names in AndroidManifest.
+    // Intent actions received by this service (passed to startService)
+    public static final String ACTION_START = "SIMPLETIMER_ACTION_START"; // Must carry EXTRA_SECONDS_LEFT
+    public static final String ACTION_PAUSE = "SIMPLETIMER_ACTION_PAUSE";
+    public static final String ACTION_RESUME = "SIMPLETIMER_ACTION_RESUME";
+    public static final String ACTION_CANCEL = "SIMPLETIMER_ACTION_CANCEL";
+
+    // Intent actions broadcast by this service. Must match action names in AndroidManifest.
     public static final String ACTION_STARTED = "SIMPLETIMER_ACTION_STARTED";
-    public static final String ACTION_STOPPED = "SIMPLETIMER_ACTION_STARTED";
+    public static final String ACTION_PAUSED = "SIMPLETIMER_ACTION_PAUSED";
+    public static final String ACTION_RESET = "SIMPLETIMER_ACTION_RESET"; // Must carry EXTRA_SECONDS_LEFT
+    public static final String ACTION_EXPIRED = "SIMPLETIMER_ACTION_EXPIRED";
+    public static final String ACTION_SILENCED = "SIMPLETIMER_ACTION_SILENCED"; // TODO: not yet used.
     public static final String ACTION_TICK = "SIMPLETIMER_ACTION_TICK";
+
+
     public static final String EXTRA_SECONDS_LEFT = "secondsLeft";
 
     private MyTimer timer;
+
+    public static String formatTimeLeft(long secondsLeft) {
+        NumberFormat f = new DecimalFormat("00");
+        long hour = (secondsLeft / 60 / 60) % 24;
+        long min = (secondsLeft / 60) % 60;
+        long sec = secondsLeft % 60;
+
+        String text = "";
+        // TODO: use a method that takes locale into account?
+        if (hour > 0) {
+            text += hour + ":" + f.format(min) + ":";
+        } else if (min > 0) {
+            text += min + ":";
+        }
+        text += f.format(sec);
+        return text;
+    }
 
     @Override
     public void onCreate() {
@@ -32,12 +63,36 @@ public class TimerService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        long secondsLeft = intent.getLongExtra(EXTRA_SECONDS_LEFT, 50); // Default to 1 minute
-        startForeground(1, getNotification("Timer started"));
+        String action = intent.getAction();
+        if(ACTION_START.equals(action)) {
 
-        timer = new MyTimer(secondsLeft * 1000L);
-        timer.Start();
+            long secondsLeft = intent.getLongExtra(EXTRA_SECONDS_LEFT, -1);
+            if(secondsLeft < 0) throw new IllegalArgumentException();
 
+            startForeground(1, getNotification("Timer started"));
+
+            timer = new MyTimer(secondsLeft * 1000L);
+            timer.Start();
+            sendTimerBroadcast(ACTION_STARTED);
+
+        } else if(ACTION_PAUSE.equals(action)) {
+            if(timer == null) throw new IllegalStateException();
+            timer.Pause();
+            sendTimerBroadcast(ACTION_PAUSED);
+        } else if(ACTION_RESUME.equals(action)) {
+            if(timer == null) throw new IllegalStateException();
+            timer.Start();
+            sendTimerBroadcast(ACTION_STARTED);
+        } else if(ACTION_CANCEL.equals(action)) {
+            if(timer == null) throw new IllegalStateException();
+            timer.Reset();
+            // Will sendTimerBroadcast in MyTimer.onReset.
+            stopForeground(true);
+            stopSelf();
+        }
+
+        // Could change to START_STICKY if able to remember a resume a timer after killing and
+        // restarting the service.
         return START_NOT_STICKY;
     }
 
@@ -45,7 +100,7 @@ public class TimerService extends Service {
     public void onDestroy() {
         super.onDestroy();
         if (timer != null) {
-            timer.Pause();
+            timer.Reset();
         }
     }
 
@@ -53,6 +108,17 @@ public class TimerService extends Service {
     @Override
     public IBinder onBind(Intent intent) {
         return null;
+    }
+
+    private void sendTimerBroadcast(String action) { sendTimerBroadcast(action, -1); }
+
+    private void sendTimerBroadcast(String action, long extraSecondsLeft) {
+        Intent intent = new Intent(action)
+                .setPackage(getApplicationContext().getPackageName());
+        if(extraSecondsLeft >= 0) {
+            intent.putExtra(EXTRA_SECONDS_LEFT, extraSecondsLeft);
+        }
+        sendBroadcast(intent);
     }
 
     private void createNotificationChannel() {
@@ -77,6 +143,8 @@ public class TimerService extends Service {
                 .setContentTitle("Timer Service")
                 .setContentText(text)
                 .setSmallIcon(R.drawable.ic_timer)
+                .setOnlyAlertOnce(true)
+                .setSilent(true)
                 .setContentIntent(pendingIntent)
                 .build();
     }
@@ -96,20 +164,25 @@ public class TimerService extends Service {
 
         @Override
         public void onTick(long secondsLeft) {
-            updateNotification("Time left: " + secondsLeft + " seconds");
-            sendBroadcast(new Intent(ACTION_TICK).setPackage(getApplicationContext().getPackageName()).putExtra(EXTRA_SECONDS_LEFT, secondsLeft));
+            updateNotification("Time remaining: " + formatTimeLeft(secondsLeft));
+            sendTimerBroadcast(ACTION_TICK, secondsLeft);
         }
 
         @Override
         public void onFinish() {
             updateNotification("Timer finished");
+            sendTimerBroadcast(ACTION_EXPIRED);
+
+            // TODO: sound alarm.
+
             stopForeground(true); // TODO: don't stop until after alarm has been silenced.
             stopSelf();
         }
 
         @Override
         public void onReset(long secondsUntilFinished) {
-            updateNotification("Timer reset to: " + secondsUntilFinished + " seconds");
+            if(timer == null) return; // This is called during Timer initialization, at which point timer is still null.
+            sendTimerBroadcast(ACTION_RESET, timer.GetCurrMs()/1000);
         }
     }
 }

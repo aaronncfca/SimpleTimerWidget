@@ -51,16 +51,29 @@ public class TimerWidget extends AppWidgetProvider {
         if(WIDGET_BTN_CLICK.equals(intent.getAction())) {
             // TODO: ensure service isn't already running.
             Intent serviceIntent = new Intent(context, TimerService.class);
-            serviceIntent.putExtra(TimerService.EXTRA_SECONDS_LEFT, 60L); // TODO: get from activity.
-            context.startService(serviceIntent);
+            serviceIntent.setAction(TimerService.ACTION_START);
+            serviceIntent.putExtra(TimerService.EXTRA_SECONDS_LEFT, 60L); // TODO: get from activity...?
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent);
+            } else {
+                context.startService(serviceIntent);
+            }
             Toast.makeText(context, "serviceStarted", Toast.LENGTH_SHORT).show();
         }
-
         if (TimerService.ACTION_TICK.equals(intent.getAction())) {
             long secondsLeft = intent.getLongExtra(TimerService.EXTRA_SECONDS_LEFT, 0);
             AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(context);
             RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.timer_widget);
-            views.setTextViewText(R.id.timer_text, "Time left: " + secondsLeft + " seconds");
+            views.setTextViewText(R.id.timer_text, TimerService.formatTimeLeft(secondsLeft));
+
+            ComponentName widget = new ComponentName(context, TimerWidget.class);
+            appWidgetManager.updateAppWidget(widget, views);
+        }
+        if(TimerService.ACTION_RESET.equals(intent.getAction())) {
+            long secondsLeft = intent.getLongExtra(TimerService.EXTRA_SECONDS_LEFT, 0);
+            AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(context);
+            RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.timer_widget);
+            views.setTextViewText(R.id.timer_text, TimerService.formatTimeLeft(secondsLeft));
 
             ComponentName widget = new ComponentName(context, TimerWidget.class);
             appWidgetManager.updateAppWidget(widget, views);
