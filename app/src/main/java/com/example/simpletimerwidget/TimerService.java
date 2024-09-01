@@ -30,8 +30,8 @@ public class TimerService extends Service {
     public static final String ACTION_PAUSED = "SIMPLETIMER_ACTION_PAUSED";
     public static final String ACTION_RESET = "SIMPLETIMER_ACTION_RESET"; // Must carry EXTRA_SECONDS_LEFT
     public static final String ACTION_EXPIRED = "SIMPLETIMER_ACTION_EXPIRED";
-    public static final String ACTION_SILENCED = "SIMPLETIMER_ACTION_SILENCED"; // TODO: not yet used.
-    public static final String ACTION_TICK = "SIMPLETIMER_ACTION_TICK";
+    public static final String ACTION_SILENCED = "SIMPLETIMER_ACTION_SILENCED"; // TODO: not yet used... issue RESET instead???
+    public static final String ACTION_TICK = "SIMPLETIMER_ACTION_TICK"; // Must carry EXTRA_SECONDS_LEFT
 
 
     public static final String EXTRA_SECONDS_LEFT = "secondsLeft";

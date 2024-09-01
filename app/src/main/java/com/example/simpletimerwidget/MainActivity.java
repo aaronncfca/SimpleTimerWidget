@@ -1,6 +1,10 @@
 package com.example.simpletimerwidget;
 
 import android.Manifest;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
@@ -14,6 +18,7 @@ import androidx.activity.EdgeToEdge;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -21,12 +26,14 @@ import androidx.core.view.WindowInsetsCompat;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 
-public class MainActivity extends AppCompatActivity implements TimePicker.OnTimeChangedListener {
+public class MainActivity extends AppCompatActivity {
 
     private TextView textView;
 
-    // TODO: make global to application, not to activity.
-    Timer timer;
+    private BroadcastReceiver receiver;
+
+    private long secondsSet = 60; // Modified when the user sets the timer.
+    private boolean timerIsRunning = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,20 +56,41 @@ public class MainActivity extends AppCompatActivity implements TimePicker.OnTime
 //        tp.setIs24HourView(true);
 //        tp.setOnTimeChangedListener(this);
 
-        timer = new Timer(60000) {
+        receiver = new BroadcastReceiver() {
             @Override
-            public void onTick(long secondsUntilFinished) {
-                setTimeView(secondsUntilFinished);
+            public void onReceive(Context context, Intent intent) {
+                String action = intent.getAction();
+                if(TimerService.ACTION_STARTED.equals(action)) {
+                    timerIsRunning = true;
+                    // TODO: show pause icon, hide others
+                } else if(TimerService.ACTION_PAUSED.equals(action)) {
+                    timerIsRunning = false;
+                    // TODO: hide pause icon, show resume and reset icons.
+                } else if(TimerService.ACTION_RESET.equals(action)) {
+                    long secondsLeft = intent.getLongExtra(TimerService.EXTRA_SECONDS_LEFT, -1);
+                    if(secondsLeft < 0) throw new IllegalArgumentException();
+                    timerIsRunning = false;
+                    onTimerReset(secondsLeft);
+                } else if(TimerService.ACTION_EXPIRED.equals(action)) {
+                    timerIsRunning = false;
+                    // TODO: flash red, show "stop alarm" button, or something?
+                } else if(TimerService.ACTION_TICK.equals(action)) {
+                    long secondsLeft = intent.getLongExtra(TimerService.EXTRA_SECONDS_LEFT, -1);
+                    if(secondsLeft < 0) throw new IllegalArgumentException();
+                    setTimeView(secondsLeft);
+                }
             }
-
-            @Override
-            public void onFinish() {
-                textView.setText("00:00:00");
-            }
-
-            @Override
-            public void onReset(long seconds) { onTimerReset(seconds); }
         };
+
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(TimerService.ACTION_STARTED);
+        filter.addAction(TimerService.ACTION_PAUSED);
+        filter.addAction(TimerService.ACTION_RESET);
+        filter.addAction(TimerService.ACTION_EXPIRED);
+        filter.addAction(TimerService.ACTION_TICK);
+        // Calling ContextCompat to avoid warnings related to specifying whether the receiver
+        // is exported.
+        ContextCompat.registerReceiver(this, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -79,42 +107,48 @@ public class MainActivity extends AppCompatActivity implements TimePicker.OnTime
         textView.setText(TimerService.formatTimeLeft(seconds));
     }
 
+    private void startTimerService(String action, long extraSecondsLeft) {
+        Intent serviceIntent = new Intent(this, TimerService.class);
+        serviceIntent.setAction(action);
+        if(extraSecondsLeft >= 0) {
+            serviceIntent.putExtra(TimerService.EXTRA_SECONDS_LEFT, extraSecondsLeft);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent);
+        } else {
+            startService(serviceIntent);
+        }
+    }
+
     public void startTimer(View view) {
         textView.setBackgroundColor(Color.TRANSPARENT);
-        timer.Start();
+        startTimerService(TimerService.ACTION_START, secondsSet);
+        timerIsRunning = true;
     }
 
     public void resetTimer (View view) {
-        timer.Reset();
-        setTimeView(timer.GetCurrMs()/1000);
+        startTimerService(TimerService.ACTION_CANCEL, -1);
     }
 
     public void pauseTimer (View view) {
-        timer.Pause();
+        startTimerService(TimerService.ACTION_PAUSE, -1);
     }
 
     public void timeClicked (View view) {
         // Don't allow setting the timer if currently ticking.
-        if(timer.IsStarted()) return;
+        if(timerIsRunning) return;
 
         MyTimePicker timePicker = new MyTimePicker();
         timePicker.setTitle("Set timer");
         //timePicker.includeHours = false
         timePicker.setOnTimeSetOption("Set", (hour, minute, second) ->  {
-            timer.Set((hour*60*60 + minute*60 + second)*1000L);
+            secondsSet = (hour*60*60 + minute*60 + second);
             return null;
         });
 
-            /* To show the dialog you have to supply the "fragment manager"
-                and a tag (whatever you want)
-            */
+        // To show the dialog you have to supply the "fragment manager"
+        // and a tag (whatever you want)
         timePicker.show(getSupportFragmentManager(), "time_picker");
 
-    }
-
-    @Override
-    public void onTimeChanged (TimePicker tp, int hour, int min) {
-        int seconds = hour * 60 * 60 + min * 60;
-        timer.Set(seconds * 1000L);
     }
 }
