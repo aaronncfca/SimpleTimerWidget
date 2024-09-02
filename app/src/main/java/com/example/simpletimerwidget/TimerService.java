@@ -7,6 +7,9 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.media.Ringtone;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.IBinder;
 
@@ -37,6 +40,8 @@ public class TimerService extends Service {
     public static final String EXTRA_SECONDS_LEFT = "secondsLeft";
 
     private MyTimer timer;
+    private NotificationCompat.Builder notificationBuilder;
+    private boolean expired = false;
 
     public static String formatTimeLeft(long secondsLeft) {
         NumberFormat f = new DecimalFormat("00");
@@ -65,23 +70,33 @@ public class TimerService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         String action = intent.getAction();
         if(ACTION_START.equals(action)) {
-
+            if(timer != null && timer.IsStarted()) {
+                // Timer is already started. Do nothing.
+                return START_NOT_STICKY;
+            }
             long secondsLeft = intent.getLongExtra(EXTRA_SECONDS_LEFT, -1);
             if(secondsLeft < 0) throw new IllegalArgumentException();
 
-            startForeground(1, getNotification("Timer started"));
-
             timer = new MyTimer(secondsLeft * 1000L);
             timer.Start();
+
+            initNotificationBuilder();
+
+            startForeground(1, getNotification("Timer started"));
+
             sendTimerBroadcast(ACTION_STARTED);
 
         } else if(ACTION_PAUSE.equals(action)) {
             if(timer == null) throw new IllegalStateException();
             timer.Pause();
+            initNotificationBuilder();
+            // Update the notification here, since there won't be any more ticks until resumed.
+            updateNotification("Timer paused: " + formatTimeLeft(timer.GetCurrMs()/1000));
             sendTimerBroadcast(ACTION_PAUSED);
         } else if(ACTION_RESUME.equals(action)) {
             if(timer == null) throw new IllegalStateException();
             timer.Start();
+            initNotificationBuilder();
             sendTimerBroadcast(ACTION_STARTED);
         } else if(ACTION_CANCEL.equals(action)) {
             if(timer == null) throw new IllegalStateException();
@@ -135,18 +150,53 @@ public class TimerService extends Service {
         }
     }
 
-    private Notification getNotification(String text) {
-        Intent notificationIntent = new Intent(this, MainActivity.class);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
+    // Initializes notificationBuilder with all our notification settings.
+    // Must be called on START, PAUSE, and RESUME before posting notifications.
+    private void initNotificationBuilder() {
+        boolean paused = (timer != null) && !timer.IsStarted();
 
-        return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Timer Service")
-                .setContentText(text)
+        // Uncomment and use this to open the activity when the notification is pressed.
+//        Intent notificationIntent = new Intent(this, MainActivity.class);
+//        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
+
+        Intent cancelIntent = new Intent(this, TimerService.class);
+        cancelIntent.setAction(ACTION_CANCEL);
+        PendingIntent piCancel = PendingIntent.getService(this, 0, cancelIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+
+
+        notificationBuilder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_timer)
                 .setOnlyAlertOnce(true)
-                .setSilent(true)
-                .setContentIntent(pendingIntent)
-                .build();
+                .setSilent(true);
+
+        // Depending on the current state, we want to either pause, resume, or cancel when
+        // the notification is pressed. Unfortunately, I have not found a way to use addAction
+        // while the timer is running, since the updating of the notification makes it
+        // difficult to press the action buttons.
+        if(expired) {
+            notificationBuilder.setContentText("Tap to dismiss")
+                .setContentIntent(piCancel);
+        } else if(paused) {
+            Intent resumeIntent = new Intent(this, TimerService.class);
+            resumeIntent.setAction(ACTION_RESUME);
+            PendingIntent piResume = PendingIntent.getService(this, 0, resumeIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+
+            notificationBuilder.setContentText("Tap to resume")
+                    .setContentIntent(piResume)
+                    .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Cancel", piCancel);
+        } else {
+            Intent pauseIntent = new Intent(this, TimerService.class);
+            pauseIntent.setAction(ACTION_PAUSE);
+            PendingIntent piPause = PendingIntent.getService(this, 0, pauseIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+
+            notificationBuilder.setContentText("Tap to pause")
+                    .setContentIntent(piPause);
+        }
+    }
+
+    private Notification getNotification(String text) {
+        notificationBuilder.setContentTitle(text);
+        return notificationBuilder.build();
     }
 
     private void updateNotification(String text) {
@@ -170,13 +220,12 @@ public class TimerService extends Service {
 
         @Override
         public void onFinish() {
+            initNotificationBuilder();
             updateNotification("Timer finished");
+            expired = true;
             sendTimerBroadcast(ACTION_EXPIRED);
 
             // TODO: sound alarm.
-
-            stopForeground(true); // TODO: don't stop until after alarm has been silenced.
-            stopSelf();
         }
 
         @Override
