@@ -7,6 +7,7 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.media.AudioAttributes;
 import android.media.Ringtone;
 import android.media.RingtoneManager;
 import android.net.Uri;
@@ -114,6 +115,7 @@ public class TimerService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+
         if (timer != null) {
             timer.Reset();
         }
@@ -138,11 +140,22 @@ public class TimerService extends Service {
 
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+
             NotificationChannel serviceChannel = new NotificationChannel(
                     CHANNEL_ID,
-                    "Timer Service Channel",
-                    NotificationManager.IMPORTANCE_DEFAULT
+                    "Timer Service Channel 2",
+                    NotificationManager.IMPORTANCE_HIGH // For the sake of alarms
             );
+
+            // Use an alarm sound, since the only time the notification will sound is
+            // on timer expired.
+            Uri alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+            AudioAttributes audioAttributes = new AudioAttributes.Builder()
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .build();
+            serviceChannel.setSound(alarmSound, audioAttributes);
+
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) {
                 manager.createNotificationChannel(serviceChannel);
@@ -165,32 +178,40 @@ public class TimerService extends Service {
 
 
         notificationBuilder = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_timer)
-                .setOnlyAlertOnce(true)
-                .setSilent(true);
+                .setSmallIcon(R.drawable.ic_timer);
 
         // Depending on the current state, we want to either pause, resume, or cancel when
         // the notification is pressed. Unfortunately, I have not found a way to use addAction
         // while the timer is running, since the updating of the notification makes it
         // difficult to press the action buttons.
         if(expired) {
+            Uri alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+
             notificationBuilder.setContentText("Tap to dismiss")
-                .setContentIntent(piCancel);
-        } else if(paused) {
-            Intent resumeIntent = new Intent(this, TimerService.class);
-            resumeIntent.setAction(ACTION_RESUME);
-            PendingIntent piResume = PendingIntent.getService(this, 0, resumeIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-
-            notificationBuilder.setContentText("Tap to resume")
-                    .setContentIntent(piResume)
-                    .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Cancel", piCancel);
+                    .setPriority(NotificationCompat.PRIORITY_HIGH) // For older models. TODO: create new channel for the alarm--or play the alarm in a different activity.
+                    .setSound(alarmSound)
+                    .setContentIntent(piCancel);
         } else {
-            Intent pauseIntent = new Intent(this, TimerService.class);
-            pauseIntent.setAction(ACTION_PAUSE);
-            PendingIntent piPause = PendingIntent.getService(this, 0, pauseIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+            // Other than on expired, we don't want the notification bothering the user directly.
+            notificationBuilder.setOnlyAlertOnce(true)
+                    .setSilent(true);
 
-            notificationBuilder.setContentText("Tap to pause")
-                    .setContentIntent(piPause);
+            if(paused) {
+                Intent resumeIntent = new Intent(this, TimerService.class);
+                resumeIntent.setAction(ACTION_RESUME);
+                PendingIntent piResume = PendingIntent.getService(this, 0, resumeIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+
+                notificationBuilder.setContentText("Tap to resume")
+                        .setContentIntent(piResume)
+                        .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Cancel", piCancel);
+            } else {
+                Intent pauseIntent = new Intent(this, TimerService.class);
+                pauseIntent.setAction(ACTION_PAUSE);
+                PendingIntent piPause = PendingIntent.getService(this, 0, pauseIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+
+                notificationBuilder.setContentText("Tap to pause")
+                        .setContentIntent(piPause);
+            }
         }
     }
 
@@ -220,12 +241,10 @@ public class TimerService extends Service {
 
         @Override
         public void onFinish() {
+            expired = true;
             initNotificationBuilder();
             updateNotification("Timer finished");
-            expired = true;
             sendTimerBroadcast(ACTION_EXPIRED);
-
-            // TODO: sound alarm.
         }
 
         @Override
