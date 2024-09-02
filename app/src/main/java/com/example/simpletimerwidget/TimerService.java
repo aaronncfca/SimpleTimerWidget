@@ -48,7 +48,7 @@ public class TimerService extends Service {
         // TODO: use a method that takes locale into account?
         if (hour > 0) {
             text += hour + ":" + f.format(min) + ":";
-        } else if (min > 0) {
+        } else {
             text += min + ":";
         }
         text += f.format(sec);

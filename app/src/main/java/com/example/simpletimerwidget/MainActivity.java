@@ -52,9 +52,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
         textView = findViewById(R.id.textView);
-//        TimePicker tp = findViewById(R.id.timePicker);
-//        tp.setIs24HourView(true);
-//        tp.setOnTimeChangedListener(this);
+        setTimeView(secondsSet);
 
         receiver = new BroadcastReceiver() {
             @Override
@@ -91,6 +89,12 @@ public class MainActivity extends AppCompatActivity {
         // Calling ContextCompat to avoid warnings related to specifying whether the receiver
         // is exported.
         ContextCompat.registerReceiver(this, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
+    }
+
+    @Override
+    protected void onDestroy() {
+        if(receiver != null) unregisterReceiver(receiver);
+        super.onDestroy();
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -139,10 +143,11 @@ public class MainActivity extends AppCompatActivity {
         if(timerIsRunning) return;
 
         MyTimePicker timePicker = new MyTimePicker();
-        timePicker.setTitle("Set timer");
-        //timePicker.includeHours = false
-        timePicker.setOnTimeSetOption("Set", (hour, minute, second) ->  {
+        timePicker.setTitle(getString(R.string.set_timer));
+
+        timePicker.setOnTimeSetOption(getString(R.string.set), (hour, minute, second) ->  {
             secondsSet = (hour*60*60 + minute*60 + second);
+            setTimeView(secondsSet);
             return null;
         });
 
