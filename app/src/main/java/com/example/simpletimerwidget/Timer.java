@@ -38,7 +38,17 @@ public abstract class Timer {
                 // Only tick once per second. Otherwise, set currMs and leave.
                 if(lastMs % 1000 == currMs % 1000) return;
 
-                Timer.this.onTick(msUntilFinished / 1000);
+                long currSec = msUntilFinished / 1000;
+                if(currSec > 0) {
+                    Timer.this.onTick(currSec);
+                } else {
+                    // If the CountDownTimer reaches 0 (i.e. less than 1000ms), we call onFinish
+                    // here and cancel to avoid calling it twice. This avoids having onTick and
+                    // onFinish called within a very short period, which could result in a
+                    // notification update being missed.
+                    Timer.this.onFinish();
+                    this.cancel();
+                }
             }
 
             @Override
@@ -67,8 +77,7 @@ public abstract class Timer {
     public abstract void onTick(long secondsUntilFinished);
 
     /**
-     * Called when timer is finished. NOTE: this will be called up to 1 second after
-     * the timer reaches 0 (i.e. onTick(0) is called) due to rounding and such.
+     * Called when timer reaches 0 or expires, whichever first.
      */
     public abstract void onFinish();
 
