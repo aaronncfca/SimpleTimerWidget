@@ -79,7 +79,7 @@ public class MainActivity extends AppCompatActivity {
                     fragArgs = SetTimerFragment.Args(secondsLeft);
                     timerIsRunning = false;
                 } else if(TimerService.ACTION_EXPIRED.equals(action)) {
-                    // TODO: switch to TimerExpiredFragment
+                    switchToFrag = TimerExpiredFragment.class;
                     timerIsRunning = false;
                 } else if(TimerService.ACTION_TICK.equals(action)) {
                     // We'll check to make sure we don't refresh the fragment every tick,

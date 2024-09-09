@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<set xmlns:android="http://schemas.android.com/apk/res/android">
+    <objectAnimator
+        android:duration="2000"
+        android:propertyName="strokeAlpha"
+        android:valueFrom="1"
+        android:valueTo="0"
+        android:valueType="floatType"
+        android:repeatCount="infinite"/>
+
+    <objectAnimator
+        android:duration="2000"
+        android:propertyName="pathData"
+        android:valueFrom="M72,72m-40,0a40,40 0,1 1,80 0a40,40 0,1 1,-80 0"
+        android:valueTo="M72,72m-60,0a60,60 0,1 1,120 0a60,60 0,1 1,-120 0"
+        android:valueType="pathType"
+        android:repeatCount="infinite"
+        android:interpolator="@android:anim/linear_interpolator"/>
+</set>
