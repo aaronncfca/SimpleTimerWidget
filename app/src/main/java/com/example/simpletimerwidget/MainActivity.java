@@ -22,6 +22,8 @@ import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentTransaction;
 
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
@@ -51,8 +53,8 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
-        textView = findViewById(R.id.textView);
-        setTimeView(secondsSet);
+        FragmentManager fragmentManager = getSupportFragmentManager();
+
 
         receiver = new BroadcastReceiver() {
             @Override
@@ -60,22 +62,24 @@ public class MainActivity extends AppCompatActivity {
                 String action = intent.getAction();
                 if(TimerService.ACTION_STARTED.equals(action)) {
                     timerIsRunning = true;
-                    // TODO: show pause icon, hide others
+                    // Switch to TimerControlsFragment. TODO: check if already on that fragment.
+                    FragmentTransaction ft = fragmentManager.beginTransaction();
+                    ft.replace(R.id.fragmentContainerView, TimerControlsFragment.class, null);
+                    ft.commit();
                 } else if(TimerService.ACTION_PAUSED.equals(action)) {
                     timerIsRunning = false;
                     // TODO: hide pause icon, show resume and reset icons.
                 } else if(TimerService.ACTION_RESET.equals(action)) {
                     long secondsLeft = intent.getLongExtra(TimerService.EXTRA_SECONDS_LEFT, -1);
                     if(secondsLeft < 0) throw new IllegalArgumentException();
+                    // Switch to SetTimerFragment
+                    FragmentTransaction ft = fragmentManager.beginTransaction();
+                    ft.replace(R.id.fragmentContainerView, SetTimerFragment.class, SetTimerFragment.Args(secondsLeft));
+                    ft.commit();
                     timerIsRunning = false;
-                    onTimerReset(secondsLeft);
                 } else if(TimerService.ACTION_EXPIRED.equals(action)) {
+                    // TODO: switch to TimerExpiredFragment
                     timerIsRunning = false;
-                    // TODO: flash red, show "stop alarm" button, or something?
-                } else if(TimerService.ACTION_TICK.equals(action)) {
-                    long secondsLeft = intent.getLongExtra(TimerService.EXTRA_SECONDS_LEFT, -1);
-                    if(secondsLeft < 0) throw new IllegalArgumentException();
-                    setTimeView(secondsLeft);
                 }
             }
         };
@@ -85,7 +89,6 @@ public class MainActivity extends AppCompatActivity {
         filter.addAction(TimerService.ACTION_PAUSED);
         filter.addAction(TimerService.ACTION_RESET);
         filter.addAction(TimerService.ACTION_EXPIRED);
-        filter.addAction(TimerService.ACTION_TICK);
         // Calling ContextCompat to avoid warnings related to specifying whether the receiver
         // is exported.
         ContextCompat.registerReceiver(this, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
@@ -102,15 +105,6 @@ public class MainActivity extends AppCompatActivity {
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 100);
     }
 
-    private void onTimerReset(long seconds) {
-        textView.setBackgroundColor(0x20808080); // 50% gray at 13% opacity
-        setTimeView(seconds);
-    }
-
-    private void setTimeView(long seconds) {
-        textView.setText(TimerService.formatTimeLeft(seconds));
-    }
-
     private void startTimerService(String action, long extraSecondsLeft) {
         Intent serviceIntent = new Intent(this, TimerService.class);
         serviceIntent.setAction(action);
@@ -124,36 +118,4 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void startTimer(View view) {
-        textView.setBackgroundColor(Color.TRANSPARENT);
-        startTimerService(TimerService.ACTION_START, secondsSet);
-        timerIsRunning = true;
-    }
-
-    public void resetTimer (View view) {
-        startTimerService(TimerService.ACTION_CANCEL, -1);
-    }
-
-    public void pauseTimer (View view) {
-        startTimerService(TimerService.ACTION_PAUSE, -1);
-    }
-
-    public void timeClicked (View view) {
-        // Don't allow setting the timer if currently ticking.
-        if(timerIsRunning) return;
-
-        MyTimePicker timePicker = new MyTimePicker();
-        timePicker.setTitle(getString(R.string.set_timer));
-
-        timePicker.setOnTimeSetOption(getString(R.string.set), (hour, minute, second) ->  {
-            secondsSet = (hour*60*60 + minute*60 + second);
-            setTimeView(secondsSet);
-            return null;
-        });
-
-        // To show the dialog you have to supply the "fragment manager"
-        // and a tag (whatever you want)
-        timePicker.show(getSupportFragmentManager(), "time_picker");
-
-    }
 }
