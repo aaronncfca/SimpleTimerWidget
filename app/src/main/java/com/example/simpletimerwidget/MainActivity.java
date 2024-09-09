@@ -22,6 +22,7 @@ import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
 
@@ -33,6 +34,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView textView;
 
     private BroadcastReceiver receiver;
+    private Class<? extends Fragment> activeFragmentClass;
 
     private long secondsSet = 60; // Modified when the user sets the timer.
     private boolean timerIsRunning = false;
@@ -59,13 +61,13 @@ public class MainActivity extends AppCompatActivity {
         receiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
+                Class<? extends Fragment> switchToFrag = activeFragmentClass;
+                Bundle fragArgs = null;
+
                 String action = intent.getAction();
                 if(TimerService.ACTION_STARTED.equals(action)) {
                     timerIsRunning = true;
-                    // Switch to TimerControlsFragment. TODO: check if already on that fragment.
-                    FragmentTransaction ft = fragmentManager.beginTransaction();
-                    ft.replace(R.id.fragmentContainerView, TimerControlsFragment.class, null);
-                    ft.commit();
+                    switchToFrag = TimerControlsFragment.class;
                 } else if(TimerService.ACTION_PAUSED.equals(action)) {
                     timerIsRunning = false;
                     // TODO: hide pause icon, show resume and reset icons.
@@ -73,13 +75,24 @@ public class MainActivity extends AppCompatActivity {
                     long secondsLeft = intent.getLongExtra(TimerService.EXTRA_SECONDS_LEFT, -1);
                     if(secondsLeft < 0) throw new IllegalArgumentException();
                     // Switch to SetTimerFragment
-                    FragmentTransaction ft = fragmentManager.beginTransaction();
-                    ft.replace(R.id.fragmentContainerView, SetTimerFragment.class, SetTimerFragment.Args(secondsLeft));
-                    ft.commit();
+                    switchToFrag = SetTimerFragment.class;
+                    fragArgs = SetTimerFragment.Args(secondsLeft);
                     timerIsRunning = false;
                 } else if(TimerService.ACTION_EXPIRED.equals(action)) {
                     // TODO: switch to TimerExpiredFragment
                     timerIsRunning = false;
+                } else if(TimerService.ACTION_TICK.equals(action)) {
+                    // We'll check to make sure we don't refresh the fragment every tick,
+                    // but this will ensure that the right fragment is shown quickly if the
+                    // Activity is opened while the timer is already running.
+                    switchToFrag = TimerControlsFragment.class;
+                }
+
+                if(activeFragmentClass != switchToFrag) {
+                    FragmentTransaction ft = fragmentManager.beginTransaction();
+                    ft.replace(R.id.fragmentContainerView, switchToFrag, fragArgs);
+                    ft.commit();
+                    activeFragmentClass = switchToFrag;
                 }
             }
         };
@@ -89,6 +102,7 @@ public class MainActivity extends AppCompatActivity {
         filter.addAction(TimerService.ACTION_PAUSED);
         filter.addAction(TimerService.ACTION_RESET);
         filter.addAction(TimerService.ACTION_EXPIRED);
+        filter.addAction(TimerService.ACTION_TICK);
         // Calling ContextCompat to avoid warnings related to specifying whether the receiver
         // is exported.
         ContextCompat.registerReceiver(this, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);

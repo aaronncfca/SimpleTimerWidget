@@ -201,6 +201,9 @@ public class TimerService extends Service {
                 resumeIntent.setAction(ACTION_RESUME);
                 PendingIntent piResume = PendingIntent.getService(this, 0, resumeIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
 
+                // TODO: if the user happens to tap to pause too soon after a tick, this
+                // notification may be gobbled up by the system. Consider creating some
+                // kind of delay before sending this notification.
                 notificationBuilder.setContentText("Tap to resume")
                         .setContentIntent(piResume)
                         .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Cancel", piCancel);
