@@ -18,6 +18,7 @@ import androidx.fragment.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageButton;
 import android.widget.TextView;
 
 /**
@@ -39,11 +40,12 @@ public class TimerControlsFragment extends Fragment {
 
     private Context activity;
     private TextView textView;
+    private ImageButton btnReset;
 
     private BroadcastReceiver receiver;
 
     private long secondsSet = 60; // Modified when the user sets the timer.
-    private boolean timerIsRunning = false;
+    private boolean timerIsRunning = true;
 
 
     /**
@@ -101,19 +103,19 @@ public class TimerControlsFragment extends Fragment {
                 String action = intent.getAction();
                 if(TimerService.ACTION_STARTED.equals(action)) {
                     timerIsRunning = true;
-                    // TODO: show pause icon, hide others
+                    if(btnReset != null) btnReset.setVisibility(View.GONE);
                 } else if(TimerService.ACTION_PAUSED.equals(action)) {
                     timerIsRunning = false;
-                    // TODO: hide pause icon, show resume and reset icons.
+                    if(btnReset != null) btnReset.setVisibility(View.VISIBLE);
                 } else if(TimerService.ACTION_RESET.equals(action)) {
+                    // TODO: this clause should be unnecessary, because this fragment
+                    // is replaced on ACTION_RESET.
                     long secondsLeft = intent.getLongExtra(TimerService.EXTRA_SECONDS_LEFT, -1);
                     if(secondsLeft < 0) throw new IllegalArgumentException();
                     timerIsRunning = false;
                     setTimeView(secondsLeft);
-                } else if(TimerService.ACTION_EXPIRED.equals(action)) {
-                    timerIsRunning = false;
-                    // TODO: flash red, show "stop alarm" button, or something?
                 } else if(TimerService.ACTION_TICK.equals(action)) {
+                    timerIsRunning = true;
                     long secondsLeft = intent.getLongExtra(TimerService.EXTRA_SECONDS_LEFT, -1);
                     if(secondsLeft < 0) throw new IllegalArgumentException();
                     setTimeView(secondsLeft);
@@ -125,15 +127,15 @@ public class TimerControlsFragment extends Fragment {
         filter.addAction(TimerService.ACTION_STARTED);
         filter.addAction(TimerService.ACTION_PAUSED);
         filter.addAction(TimerService.ACTION_RESET);
-        filter.addAction(TimerService.ACTION_EXPIRED);
         filter.addAction(TimerService.ACTION_TICK);
         // Calling ContextCompat to avoid warnings related to specifying whether the receiver
         // is exported.
         ContextCompat.registerReceiver(activity, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
 
-        view.findViewById(R.id.btnPause).setOnClickListener(this::pauseTimer);
-        view.findViewById(R.id.btnPlay).setOnClickListener(this::startTimer);
-        view.findViewById(R.id.btnReset).setOnClickListener(this::resetTimer);
+        btnReset = view.findViewById(R.id.btnReset);
+        view.findViewById(R.id.btnPauseResume).setOnClickListener(this::pauseResumeTimer);
+        btnReset.setOnClickListener(this::resetTimer);
+        btnReset.setVisibility(View.GONE);
     }
 
 
@@ -154,18 +156,19 @@ public class TimerControlsFragment extends Fragment {
         }
     }
 
-    public void startTimer(View view) {
-        textView.setBackgroundColor(Color.TRANSPARENT);
-        startTimerService(TimerService.ACTION_START, secondsSet);
-        timerIsRunning = true;
+    public void pauseResumeTimer(View view) {
+        if(timerIsRunning) {
+            startTimerService(TimerService.ACTION_PAUSE, -1);
+            timerIsRunning = false;
+        } else {
+            startTimerService(TimerService.ACTION_RESUME, -1);
+            timerIsRunning = true;
+        }
+
     }
 
     public void resetTimer (View view) {
         startTimerService(TimerService.ACTION_CANCEL, -1);
-    }
-
-    public void pauseTimer (View view) {
-        startTimerService(TimerService.ACTION_PAUSE, -1);
     }
 
 

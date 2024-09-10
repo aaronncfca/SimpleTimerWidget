@@ -5,7 +5,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:gravity="center_horizontal">
+    android:gravity="center_horizontal"
+    android:animateLayoutChanges="true">
 
     <Space
         android:layout_width="match_parent"
@@ -33,27 +34,19 @@
             android:layout_weight="1" />
 
         <ImageButton
-            android:id="@+id/btnPause"
+            android:id="@+id/btnPauseResume"
             android:layout_width="10dp"
-            android:layout_height="wrap_content"
+            android:layout_height="60dp"
             android:layout_weight="1"
             android:backgroundTint="?attr/colorPrimary"
             android:contentDescription="@string/pauseDesc"
-            app:srcCompat="@android:drawable/ic_media_pause" />
-
-        <ImageButton
-            android:id="@+id/btnPlay"
-            android:layout_width="10dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:backgroundTint="?attr/colorPrimary"
-            android:contentDescription="@string/playDesc"
-            app:srcCompat="@android:drawable/ic_media_play" />
+            app:tint="#FFFFFF"
+            app:srcCompat="@drawable/ic_timer" />
 
         <ImageButton
             android:id="@+id/btnReset"
             android:layout_width="10dp"
-            android:layout_height="wrap_content"
+            android:layout_height="60dp"
             android:layout_weight="1"
             android:backgroundTint="?attr/colorPrimary"
             android:contentDescription="@string/resetDesc"
