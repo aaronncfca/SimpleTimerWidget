@@ -91,7 +91,9 @@ public class MainActivity extends AppCompatActivity {
                 if(activeFragmentClass != switchToFrag) {
                     FragmentTransaction ft = fragmentManager.beginTransaction();
                     ft.replace(R.id.fragmentContainerView, switchToFrag, fragArgs);
-                    ft.commit();
+                    // Allow state loss, since otherwise this will error if the app screen
+                    // is not currently pulled up.
+                    ft.commitAllowingStateLoss();
                     activeFragmentClass = switchToFrag;
                 }
             }

@@ -37,6 +37,8 @@ public class TimerService extends Service {
     public static final String ACTION_SILENCED = "SIMPLETIMER_ACTION_SILENCED"; // TODO: not yet used... issue RESET instead???
     public static final String ACTION_TICK = "SIMPLETIMER_ACTION_TICK"; // Must carry EXTRA_SECONDS_LEFT
 
+    public static final String TIMER_SHARED_PREFERENCES = "TimerWidgetPrefs";
+    public static final String PREF_STARTING_SECONDS = "startingSeconds";
 
     public static final String EXTRA_SECONDS_LEFT = "secondsLeft";
 

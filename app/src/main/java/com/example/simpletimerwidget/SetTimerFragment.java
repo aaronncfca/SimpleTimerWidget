@@ -2,6 +2,7 @@ package com.example.simpletimerwidget;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
 
@@ -55,6 +56,9 @@ public class SetTimerFragment extends Fragment {
         super.onCreate(savedInstanceState);
         if(getArguments() != null) {
             initialSeconds = getArguments().getLong(ARG_INITIAL_SECONDS);
+        } else if(getActivity() != null){
+            SharedPreferences prefs = getActivity().getSharedPreferences(TimerService.TIMER_SHARED_PREFERENCES, Context.MODE_PRIVATE);
+            initialSeconds = prefs.getLong(TimerService.PREF_STARTING_SECONDS, 60L);
         }
     }
 
@@ -104,6 +108,15 @@ public class SetTimerFragment extends Fragment {
         int minute = minPicker.getValue();
         int second = secPicker.getValue();
         long secondsLeft = (hour*60L*60 + minute*60L + second);
+
+        if(getActivity() != null) {
+            // Save the time in shared preferences
+            SharedPreferences prefs = getActivity().getSharedPreferences(TimerService.TIMER_SHARED_PREFERENCES, Context.MODE_PRIVATE);
+            SharedPreferences.Editor editor = prefs.edit();
+            editor.putLong(TimerService.PREF_STARTING_SECONDS, secondsLeft);
+            editor.apply();
+        }
+
         startTimerService(TimerService.ACTION_START, secondsLeft);
     }
 }

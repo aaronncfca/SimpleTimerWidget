@@ -33,7 +33,10 @@
                 <action android:name="SIMPLETIMER_ACTION_PAUSED" />
                 <action android:name="SIMPLETIMER_ACTION_RESET" />
                 <action android:name="SIMPLETIMER_ACTION_TICK" />
-                <action android:name="WIDGETBTN_CLICK" />
+                <action android:name="SIMPLETIMER_ACTION_EXPIRED" />
+                <action android:name="START_BTN_CLICK" />
+                <action android:name="RESET_BTN_CLICK" />
+                <action android:name="TIMER_TEXT_CLICK" />
             </intent-filter>
 
             <meta-data
