@@ -12,13 +12,14 @@ import android.widget.RemoteViews;
 import android.content.ComponentName;
 import android.widget.Toast;
 
+import java.util.Arrays;
+
 /**
  * Implementation of App Widget functionality.
  */
 public class TimerWidget extends AppWidgetProvider {
     private final String START_BTN_CLICK = "START_BTN_CLICK";
     private final String RESET_BTN_CLICK = "RESET_BTN_CLICK";
-    private final String TIMER_TEXT_CLICK = "TIMER_TEXT_CLICK";
 
     private boolean isPaused = false;
     private boolean isRunning = false;
@@ -61,8 +62,13 @@ public class TimerWidget extends AppWidgetProvider {
     @Override
     public void onReceive(Context context, Intent intent) {
         super.onReceive(context, intent);
-        loadTimerState(context);
-        if(START_BTN_CLICK.equals(intent.getAction())) {
+
+        String action = intent.getAction();
+        if(action == null) return;
+
+        // BUTTON CLICK HANDLERS
+
+        if(START_BTN_CLICK.equals(action)) {
             if(isPaused) {
                 TimerService.startTimerService(context, TimerService.ACTION_RESUME, startingSeconds);
             } else if(isRunning) {
@@ -71,65 +77,56 @@ public class TimerWidget extends AppWidgetProvider {
                 TimerService.startTimerService(context, TimerService.ACTION_START, startingSeconds);
             }
         }
-        if(RESET_BTN_CLICK.equals(intent.getAction())) {
+        if(RESET_BTN_CLICK.equals(action)) {
             TimerService.startTimerService(context, TimerService.ACTION_CANCEL, -1L);
         }
-        if(TIMER_TEXT_CLICK.equals(intent.getAction())) {
-            // TODO: open app.
-            Toast.makeText(context, "Timer widget clicked.", Toast.LENGTH_SHORT).show();
+
+        // TIMER STATUS UPDATE HANDLERS
+
+        final String[] timerActions = new String[] {
+                TimerService.ACTION_TICK,
+                TimerService.ACTION_RESET,
+                TimerService.ACTION_PAUSED,
+                TimerService.ACTION_STARTED,
+                TimerService.ACTION_EXPIRED
+        };
+
+        if(!Arrays.stream(timerActions).anyMatch(action::equals)) {
+            return;
         }
-        if (TimerService.ACTION_TICK.equals(intent.getAction())) {
+
+        loadTimerState(context);
+
+        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.timer_widget);
+
+        if (TimerService.ACTION_TICK.equals(action)) {
             long secondsLeft = intent.getLongExtra(TimerService.EXTRA_SECONDS_LEFT, 0);
 
-            RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.timer_widget);
             views.setTextViewText(R.id.timer_text, TimerService.formatTimeLeft(secondsLeft));
-
-            ComponentName widget = new ComponentName(context, TimerWidget.class);
-            AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(context);
-            appWidgetManager.updateAppWidget(widget, views);
         }
-        if(TimerService.ACTION_RESET.equals(intent.getAction())) {
+        if(TimerService.ACTION_RESET.equals(action)) {
             startingSeconds = intent.getLongExtra(TimerService.EXTRA_SECONDS_LEFT, 60L);
             saveTimerState(context, false, false);
 
-            RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.timer_widget);
             views.setTextViewText(R.id.timer_text, TimerService.formatTimeLeft(startingSeconds));
             hideResetBtn(views);
-
-            ComponentName widget = new ComponentName(context, TimerWidget.class);
-            AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(context);
-            appWidgetManager.updateAppWidget(widget, views);
         }
-        if(TimerService.ACTION_PAUSED.equals(intent.getAction())) {
+        if(TimerService.ACTION_PAUSED.equals(action)) {
             saveTimerState(context, true, false);
-
-            RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.timer_widget);
             showResetBtn(views);
-
-            ComponentName widget = new ComponentName(context, TimerWidget.class);
-            AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(context);
-            appWidgetManager.updateAppWidget(widget, views);
         }
-        if(TimerService.ACTION_STARTED.equals(intent.getAction())) {
+        if(TimerService.ACTION_STARTED.equals(action)) {
             saveTimerState(context, false, true);
-
-            RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.timer_widget);
             hideResetBtn(views);
-
-            ComponentName widget = new ComponentName(context, TimerWidget.class);
-            AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(context);
-            appWidgetManager.updateAppWidget(widget, views);
         }
-        if(TimerService.ACTION_EXPIRED.equals(intent.getAction())) {
+        if(TimerService.ACTION_EXPIRED.equals(action)) {
             saveTimerState(context, false, false);
-
-            RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.timer_widget);
             showResetBtnOnly(views);
-
-            ComponentName widget = new ComponentName(context, TimerWidget.class);
-            AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(context);
-            appWidgetManager.updateAppWidget(widget, views);
         }
+
+        ComponentName widget = new ComponentName(context, TimerWidget.class);
+        AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(context);
+        appWidgetManager.updateAppWidget(widget, views);
     }
 
     @Override
