@@ -143,32 +143,19 @@ public class TimerControlsFragment extends Fragment {
         textView.setText(TimerService.formatTimeLeft(seconds));
     }
 
-    private void startTimerService(String action, long extraSecondsLeft) {
-        Intent serviceIntent = new Intent(getActivity(), TimerService.class);
-        serviceIntent.setAction(action);
-        if(extraSecondsLeft >= 0) {
-            serviceIntent.putExtra(TimerService.EXTRA_SECONDS_LEFT, extraSecondsLeft);
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            activity.startForegroundService(serviceIntent);
-        } else {
-            activity.startService(serviceIntent);
-        }
-    }
-
     public void pauseResumeTimer(View view) {
         if(timerIsRunning) {
-            startTimerService(TimerService.ACTION_PAUSE, -1);
+            TimerService.startTimerService(activity, TimerService.ACTION_PAUSE, -1);
             timerIsRunning = false;
         } else {
-            startTimerService(TimerService.ACTION_RESUME, -1);
+            TimerService.startTimerService(activity, TimerService.ACTION_RESUME, -1);
             timerIsRunning = true;
         }
 
     }
 
     public void resetTimer (View view) {
-        startTimerService(TimerService.ACTION_CANCEL, -1);
+        TimerService.startTimerService(activity, TimerService.ACTION_CANCEL, -1);
     }
 
 

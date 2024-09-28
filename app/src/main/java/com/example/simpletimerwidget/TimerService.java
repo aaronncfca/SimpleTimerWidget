@@ -63,6 +63,19 @@ public class TimerService extends Service {
         return text;
     }
 
+    public static void startTimerService(Context context, String action, long extraSecondsLeft) {
+        Intent serviceIntent = new Intent(context, TimerService.class);
+        serviceIntent.setAction(action);
+        if(extraSecondsLeft >= 0) {
+            serviceIntent.putExtra(EXTRA_SECONDS_LEFT, extraSecondsLeft);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(serviceIntent);
+        } else {
+            context.startService(serviceIntent);
+        }
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();

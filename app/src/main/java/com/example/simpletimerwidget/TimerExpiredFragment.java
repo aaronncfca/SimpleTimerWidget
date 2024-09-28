@@ -47,24 +47,10 @@ public class TimerExpiredFragment extends Fragment {
         avd.start();
     }
 
-
-    private void startTimerService(String action, long extraSecondsLeft) {
+    private void onBtnDismissPress(View view) {
         Context activityContext = getActivity();
         if(activityContext == null) throw new IllegalStateException();
 
-        Intent serviceIntent = new Intent(activityContext, TimerService.class);
-        serviceIntent.setAction(action);
-        if(extraSecondsLeft >= 0) {
-            serviceIntent.putExtra(TimerService.EXTRA_SECONDS_LEFT, extraSecondsLeft);
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            activityContext.startForegroundService(serviceIntent);
-        } else {
-            activityContext.startService(serviceIntent);
-        }
-    }
-
-    private void onBtnDismissPress(View view) {
-        startTimerService(TimerService.ACTION_CANCEL, -1);
+        TimerService.startTimerService(activityContext, TimerService.ACTION_CANCEL, -1);
     }
 }

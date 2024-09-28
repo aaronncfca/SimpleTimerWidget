@@ -1,5 +1,6 @@
 package com.example.simpletimerwidget;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -87,36 +88,21 @@ public class SetTimerFragment extends Fragment {
         view.findViewById(R.id.startTimerButton).setOnClickListener(this::startTimerClicked);
     }
 
-    private void startTimerService(String action, long extraSecondsLeft) {
-        Context activityContext = getActivity();
-        if(activityContext == null) throw new IllegalStateException();
-
-        Intent serviceIntent = new Intent(activityContext, TimerService.class);
-        serviceIntent.setAction(action);
-        if(extraSecondsLeft >= 0) {
-            serviceIntent.putExtra(TimerService.EXTRA_SECONDS_LEFT, extraSecondsLeft);
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            activityContext.startForegroundService(serviceIntent);
-        } else {
-            activityContext.startService(serviceIntent);
-        }
-    }
-
     public void startTimerClicked (View view) {
+        Activity activity = getActivity();
+        if(activity == null) throw new IllegalStateException();
+
         int hour = hourPicker.getValue();
         int minute = minPicker.getValue();
         int second = secPicker.getValue();
         long secondsLeft = (hour*60L*60 + minute*60L + second);
 
-        if(getActivity() != null) {
-            // Save the time in shared preferences
-            SharedPreferences prefs = getActivity().getSharedPreferences(TimerService.TIMER_SHARED_PREFERENCES, Context.MODE_PRIVATE);
-            SharedPreferences.Editor editor = prefs.edit();
-            editor.putLong(TimerService.PREF_STARTING_SECONDS, secondsLeft);
-            editor.apply();
-        }
+        // Save the time in shared preferences
+        SharedPreferences prefs = activity.getSharedPreferences(TimerService.TIMER_SHARED_PREFERENCES, Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.putLong(TimerService.PREF_STARTING_SECONDS, secondsLeft);
+        editor.apply();
 
-        startTimerService(TimerService.ACTION_START, secondsLeft);
+        TimerService.startTimerService(activity, TimerService.ACTION_START, secondsLeft);
     }
 }

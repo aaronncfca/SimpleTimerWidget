@@ -64,15 +64,15 @@ public class TimerWidget extends AppWidgetProvider {
         loadTimerState(context);
         if(START_BTN_CLICK.equals(intent.getAction())) {
             if(isPaused) {
-                startTimerService(context, TimerService.ACTION_RESUME, startingSeconds);
+                TimerService.startTimerService(context, TimerService.ACTION_RESUME, startingSeconds);
             } else if(isRunning) {
-                startTimerService(context, TimerService.ACTION_PAUSE, startingSeconds);
+                TimerService.startTimerService(context, TimerService.ACTION_PAUSE, startingSeconds);
             } else {
-                startTimerService(context, TimerService.ACTION_START, startingSeconds);
+                TimerService.startTimerService(context, TimerService.ACTION_START, startingSeconds);
             }
         }
         if(RESET_BTN_CLICK.equals(intent.getAction())) {
-            startTimerService(context, TimerService.ACTION_CANCEL, -1L);
+            TimerService.startTimerService(context, TimerService.ACTION_CANCEL, -1L);
         }
         if(TIMER_TEXT_CLICK.equals(intent.getAction())) {
             // TODO: open app.
@@ -165,19 +165,6 @@ public class TimerWidget extends AppWidgetProvider {
         views.setViewVisibility(R.id.start_button, View.VISIBLE);
         views.setViewVisibility(R.id.reset_button, View.GONE);
         views.setViewVisibility(R.id.divider, View.GONE);
-    }
-
-    private void startTimerService(Context context, String action, long extraSecondsLeft) {
-        Intent serviceIntent = new Intent(context, TimerService.class);
-        serviceIntent.setAction(action);
-        if(extraSecondsLeft >= 0) {
-            serviceIntent.putExtra(TimerService.EXTRA_SECONDS_LEFT, extraSecondsLeft);
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(serviceIntent);
-        } else {
-            context.startService(serviceIntent);
-        }
     }
 
     private void saveTimerState(Context context, boolean isPaused, boolean isRunning) {

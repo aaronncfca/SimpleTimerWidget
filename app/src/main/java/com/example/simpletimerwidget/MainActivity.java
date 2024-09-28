@@ -121,17 +121,4 @@ public class MainActivity extends AppCompatActivity {
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 100);
     }
 
-    private void startTimerService(String action, long extraSecondsLeft) {
-        Intent serviceIntent = new Intent(this, TimerService.class);
-        serviceIntent.setAction(action);
-        if(extraSecondsLeft >= 0) {
-            serviceIntent.putExtra(TimerService.EXTRA_SECONDS_LEFT, extraSecondsLeft);
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent);
-        } else {
-            startService(serviceIntent);
-        }
-    }
-
 }
