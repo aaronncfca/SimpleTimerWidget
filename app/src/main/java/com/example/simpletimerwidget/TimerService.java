@@ -130,11 +130,12 @@ public class TimerService extends Service {
 
     @Override
     public void onDestroy() {
-        super.onDestroy();
-
         if (timer != null) {
+            // Will result in MyTimer::onReset (below), which will broadcast ACTION_RESET.
             timer.Reset();
         }
+
+        super.onDestroy();
     }
 
     @Nullable
