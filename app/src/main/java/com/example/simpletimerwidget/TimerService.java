@@ -86,34 +86,35 @@ public class TimerService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         String action = intent.getAction();
         if(ACTION_START.equals(action)) {
-            if(timer != null && timer.IsStarted()) {
-                // Timer is already started. Do nothing.
-                return START_NOT_STICKY;
+            if(timer == null || !timer.IsStarted()) { // If timer is already created and running, do nothing.
+                long secondsLeft = intent.getLongExtra(EXTRA_SECONDS_LEFT, -1);
+                if (secondsLeft < 0) throw new IllegalArgumentException();
+
+                timer = new MyTimer(secondsLeft * 1000L);
+                timer.Start();
+
+                initNotificationBuilder();
+
+                startForeground(1, getNotification("Timer started"));
+
+                sendTimerBroadcast(ACTION_STARTED);
             }
-            long secondsLeft = intent.getLongExtra(EXTRA_SECONDS_LEFT, -1);
-            if(secondsLeft < 0) throw new IllegalArgumentException();
-
-            timer = new MyTimer(secondsLeft * 1000L);
-            timer.Start();
-
-            initNotificationBuilder();
-
-            startForeground(1, getNotification("Timer started"));
-
-            sendTimerBroadcast(ACTION_STARTED);
-
         } else if(ACTION_PAUSE.equals(action)) {
             if(timer == null) throw new IllegalStateException();
-            timer.Pause();
-            initNotificationBuilder();
-            // Update the notification here, since there won't be any more ticks until resumed.
-            updateNotification("Timer paused: " + formatTimeLeft(timer.GetCurrMs()/1000));
-            sendTimerBroadcast(ACTION_PAUSED);
+            if(timer.IsStarted()) { // If timer is already paused, do nothing.
+                timer.Pause();
+                initNotificationBuilder();
+                // Update the notification here, since there won't be any more ticks until resumed.
+                updateNotification("Timer paused: " + formatTimeLeft(timer.GetCurrMs()/1000));
+                sendTimerBroadcast(ACTION_PAUSED);
+            }
         } else if(ACTION_RESUME.equals(action)) {
             if(timer == null) throw new IllegalStateException();
-            timer.Start();
-            initNotificationBuilder();
-            sendTimerBroadcast(ACTION_STARTED);
+            if(!timer.IsStarted()) { // If timer is already running, do nothing.
+                timer.Start();
+                initNotificationBuilder();
+                sendTimerBroadcast(ACTION_STARTED);
+            }
         } else if(ACTION_CANCEL.equals(action)) {
             if(timer == null) throw new IllegalStateException();
             timer.Reset();

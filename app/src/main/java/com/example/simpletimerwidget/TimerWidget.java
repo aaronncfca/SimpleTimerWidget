@@ -24,18 +24,7 @@ public class TimerWidget extends AppWidgetProvider {
     private boolean isPaused = false;
     private boolean isRunning = false;
     private long startingSeconds = 60L;
-
-    static void updateAppWidget(Context context, AppWidgetManager appWidgetManager,
-                                int appWidgetId) {
-
-        CharSequence widgetText = context.getString(R.string.appwidget_text);
-        // Construct the RemoteViews object
-        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.timer_widget);
-        views.setTextViewText(R.id.timer_text, widgetText);
-
-        // Instruct the widget manager to update the widget
-        appWidgetManager.updateAppWidget(appWidgetId, views);
-    }
+    
 
     @Override
     public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
@@ -66,6 +55,8 @@ public class TimerWidget extends AppWidgetProvider {
         String action = intent.getAction();
         if(action == null) return;
 
+        loadTimerState(context); // Required for accessing isPaused and isRunning
+
         // BUTTON CLICK HANDLERS
 
         if(START_BTN_CLICK.equals(action)) {
@@ -95,8 +86,6 @@ public class TimerWidget extends AppWidgetProvider {
             return;
         }
 
-        loadTimerState(context);
-
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.timer_widget);
 
         if (TimerService.ACTION_TICK.equals(action)) {
@@ -122,6 +111,7 @@ public class TimerWidget extends AppWidgetProvider {
         if(TimerService.ACTION_EXPIRED.equals(action)) {
             saveTimerState(context, false, false);
             showResetBtnOnly(views);
+            views.setTextViewText(R.id.timer_text, TimerService.formatTimeLeft(0));
         }
 
         ComponentName widget = new ComponentName(context, TimerWidget.class);

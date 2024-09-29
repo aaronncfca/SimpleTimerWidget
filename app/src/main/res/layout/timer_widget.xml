@@ -44,6 +44,7 @@ android:orientation="horizontal"
             android:layout_height="1dp"
             android:layout_weight="0"
             android:src="@drawable/divider"
+            android:visibility="gone"
             app:srcCompat="@drawable/divider" />
 
         <ImageButton
@@ -52,6 +53,7 @@ android:orientation="horizontal"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:background="@drawable/widget_btn_bg"
+            android:visibility="gone"
             android:src="@drawable/ic_refresh_white"
             app:srcCompat="@drawable/ic_refresh_white" />
     </LinearLayout>
