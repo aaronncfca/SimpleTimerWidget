@@ -1,18 +1,22 @@
 package com.example.simpletimerwidget;
 
 import android.Manifest;
+import android.app.AlarmManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.CountDownTimer;
+import android.provider.Settings;
 import android.util.TypedValue;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.TimePicker;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.RequiresApi;
@@ -38,6 +42,22 @@ public class MainActivity extends AppCompatActivity {
 
     private long secondsSet = 60; // Modified when the user sets the timer.
     private boolean timerIsRunning = false;
+
+    // This permission is used (but not required) by timer service , but it seems best to request \
+    // the permission here.
+    private void checkAndRequestExactAlarmPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            AlarmManager alarmManager = (AlarmManager) this.getSystemService(Context.ALARM_SERVICE);
+            if (alarmManager != null && !alarmManager.canScheduleExactAlarms()) {
+                Toast.makeText(this, R.string.timer_permission_explanation, Toast.LENGTH_LONG)
+                        .show();
+
+                Intent intent = new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:"+ getPackageName()));
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                this.startActivity(intent);
+            }
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -108,6 +128,8 @@ public class MainActivity extends AppCompatActivity {
         // Calling ContextCompat to avoid warnings related to specifying whether the receiver
         // is exported.
         ContextCompat.registerReceiver(this, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
+
+        checkAndRequestExactAlarmPermission();
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.example.simpletimerwidget;
 
+import android.app.AlarmManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -13,6 +14,8 @@ import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.IBinder;
+import android.provider.AlarmClock;
+import android.provider.Settings;
 
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
@@ -34,6 +37,9 @@ public class TimerService extends Service {
     public static final String ACTION_PAUSED = "SIMPLETIMER_ACTION_PAUSED";
     public static final String ACTION_RESET = "SIMPLETIMER_ACTION_RESET"; // Must carry EXTRA_SECONDS_LEFT
     public static final String ACTION_EXPIRED = "SIMPLETIMER_ACTION_EXPIRED";
+
+    // Used for AlarmManager PendingIntents, not called by or broadcasted to external classes.
+    private static final String ACTION_ALARMCLOCK = "SIMPLETIMER_ACTION_ALARMCLOCK";
     public static final String ACTION_SILENCED = "SIMPLETIMER_ACTION_SILENCED"; // TODO: not yet used... issue RESET instead???
     public static final String ACTION_TICK = "SIMPLETIMER_ACTION_TICK"; // Must carry EXTRA_SECONDS_LEFT
 
@@ -43,8 +49,11 @@ public class TimerService extends Service {
     public static final String EXTRA_SECONDS_LEFT = "secondsLeft";
 
     private MyTimer timer;
+    private AlarmManager alarmManager;
+    private PendingIntent alarmIntent;
     private NotificationCompat.Builder notificationBuilder;
     private boolean expired = false;
+    private boolean usingAlarmManager = false; // Set to true if canScheduleExactAlarms.
 
     public static String formatTimeLeft(long secondsLeft) {
         NumberFormat f = new DecimalFormat("00");
@@ -76,10 +85,40 @@ public class TimerService extends Service {
         }
     }
 
+    private void scheduleAlarm(long msLeft) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (alarmManager == null || !alarmManager.canScheduleExactAlarms()) {
+                usingAlarmManager = false;
+                return; // Do nothing; we aren't allowed to schedule an alarm.
+            }
+        }
+        usingAlarmManager = true;
+
+        if(alarmManager != null) {
+            long triggerAtMillis = System.currentTimeMillis() + msLeft;
+
+            Intent intent = new Intent(this, TimerService.class);
+            intent.setAction(ACTION_ALARMCLOCK);
+            alarmIntent = PendingIntent.getService(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            AlarmManager.AlarmClockInfo info = new AlarmManager.AlarmClockInfo(triggerAtMillis, alarmIntent);
+            alarmManager.setAlarmClock(info, alarmIntent);
+        }
+    }
+
+    // Method to cancel an alarm
+    private void cancelAlarm() {
+        if (alarmManager != null && alarmIntent != null) {
+            alarmManager.cancel(alarmIntent);
+            alarmIntent = null;
+        }
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
         createNotificationChannel();
+
+        alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
     }
 
     @Override
@@ -92,6 +131,7 @@ public class TimerService extends Service {
 
                 timer = new MyTimer(secondsLeft * 1000L);
                 timer.Start();
+                scheduleAlarm(secondsLeft * 1000L);
 
                 initNotificationBuilder();
 
@@ -103,6 +143,7 @@ public class TimerService extends Service {
             if(timer == null) throw new IllegalStateException();
             if(timer.IsStarted()) { // If timer is already paused, do nothing.
                 timer.Pause();
+                cancelAlarm();
                 initNotificationBuilder();
                 // Update the notification here, since there won't be any more ticks until resumed.
                 updateNotification("Timer paused: " + formatTimeLeft(timer.GetCurrMs()/1000));
@@ -112,15 +153,22 @@ public class TimerService extends Service {
             if(timer == null) throw new IllegalStateException();
             if(!timer.IsStarted()) { // If timer is already running, do nothing.
                 timer.Start();
+                scheduleAlarm(timer.GetCurrMs());
                 initNotificationBuilder();
                 sendTimerBroadcast(ACTION_STARTED);
             }
         } else if(ACTION_CANCEL.equals(action)) {
             if(timer == null) throw new IllegalStateException();
             timer.Reset();
+            cancelAlarm();
             // Will sendTimerBroadcast in MyTimer.onReset.
             stopForeground(true);
             stopSelf();
+        } else if(ACTION_ALARMCLOCK.equals(action)) {
+            expired = true; // Important to set before calling initNotificationBuilder().
+            initNotificationBuilder();
+            updateNotification("Timer finished");
+            sendTimerBroadcast(ACTION_EXPIRED);
         }
 
         // Could change to START_STICKY if able to remember a resume a timer after killing and
@@ -133,6 +181,7 @@ public class TimerService extends Service {
         if (timer != null) {
             // Will result in MyTimer::onReset (below), which will broadcast ACTION_RESET.
             timer.Reset();
+            cancelAlarm();
         }
 
         super.onDestroy();
@@ -255,16 +304,23 @@ public class TimerService extends Service {
 
         @Override
         public void onTick(long secondsLeft) {
-            updateNotification("Time remaining: " + formatTimeLeft(secondsLeft));
-            sendTimerBroadcast(ACTION_TICK, secondsLeft);
+            if(secondsLeft >= 2) {
+                // Avoid updating the notification at 1 second, since the notification manager may
+                // eat up the timer expired notification if it sees it in too close proximity to
+                // an earlier update.
+                updateNotification("Time remaining: " + formatTimeLeft(secondsLeft));
+                sendTimerBroadcast(ACTION_TICK, secondsLeft);
+            }
         }
 
         @Override
         public void onFinish() {
-            expired = true;
-            initNotificationBuilder();
-            updateNotification("Timer finished");
-            sendTimerBroadcast(ACTION_EXPIRED);
+            if(!usingAlarmManager) {
+                // If we aren't allowed to use the alarm manager, explicitly trigger ACTION_ALARMCLOCK
+                // here instead. Otherwise the alarm manager will do so, ensuring the device awakens
+                // if sleeping, etc.
+                startTimerService(TimerService.this, ACTION_ALARMCLOCK, -1);
+            }
         }
 
         @Override
