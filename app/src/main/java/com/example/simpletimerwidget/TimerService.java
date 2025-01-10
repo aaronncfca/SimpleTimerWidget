@@ -14,6 +14,7 @@ import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.PowerManager;
 import android.provider.AlarmClock;
 import android.provider.Settings;
 
@@ -54,6 +55,7 @@ public class TimerService extends Service {
     private NotificationCompat.Builder notificationBuilder;
     private boolean expired = false;
     private boolean usingAlarmManager = false; // Set to true if canScheduleExactAlarms.
+    private PowerManager.WakeLock wakeLock = null;
 
     public static String formatTimeLeft(long secondsLeft) {
         NumberFormat f = new DecimalFormat("00");
@@ -161,10 +163,20 @@ public class TimerService extends Service {
             if(timer == null) throw new IllegalStateException();
             timer.Reset();
             cancelAlarm();
+            if(wakeLock != null) {
+                wakeLock.release();
+                wakeLock = null;
+            }
             // Will sendTimerBroadcast in MyTimer.onReset.
             stopForeground(true);
             stopSelf();
         } else if(ACTION_ALARMCLOCK.equals(action)) {
+            // Keep the device awake so the user can see and dismiss the notification.
+            PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            //noinspection deprecation // PowerManager.FULL_WAKE_LOCK is deprecated, but there is no acceptable alternative.
+            wakeLock = powerManager.newWakeLock(PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.FULL_WAKE_LOCK, "SimpleTimer:WakeLock");
+            wakeLock.acquire(20 * 1000L); // Acquire wake lock for 20 seconds or until notification is dismissed.
+
             expired = true; // Important to set before calling initNotificationBuilder().
             initNotificationBuilder();
             updateNotification("Timer finished");
@@ -304,12 +316,12 @@ public class TimerService extends Service {
 
         @Override
         public void onTick(long secondsLeft) {
+            sendTimerBroadcast(ACTION_TICK, secondsLeft);
             if(secondsLeft >= 2) {
                 // Avoid updating the notification at 1 second, since the notification manager may
                 // eat up the timer expired notification if it sees it in too close proximity to
                 // an earlier update.
                 updateNotification("Time remaining: " + formatTimeLeft(secondsLeft));
-                sendTimerBroadcast(ACTION_TICK, secondsLeft);
             }
         }
 
